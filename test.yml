@@ -15,13 +15,11 @@
       set_fact:
         login_defs_info: >
           {{
-            (login_defs_raw.content | b64decode).split('\n') |
-            select('search', 'PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT') |
-            map('split', ' ') |
-            map('map', 'trim') |
-            map('list') |
-            list | 
-            items2dict
+            (login_defs_raw.content | b64decode | split('\n') |
+            select('match', '^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)') |
+            map('regex_replace', '^(\\S+)\\s+(.*)$', '\\1: \\2') |
+            map('split', ': ') |
+            list | items2dict
           }}
     
     - name: Проверка и вывод параметров login_defs
@@ -40,3 +38,4 @@
     - name: Печать сообщения об успешном экспорте
       debug:
         msg: "Данные успешно экспортированы в файл '/tmp/sys_info.json'."
+
