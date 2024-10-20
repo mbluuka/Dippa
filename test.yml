@@ -12,7 +12,7 @@
       set_fact:
         login_defs_info: >-
           {{
-            login_defs_raw.content | b64decode | splitlines | map('regex_replace', '^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)\s+(.*)', '\\1:\\2') | select('search', '^') | map('split', ':') | list | items2dict
+            login_defs_raw.content | b64decode | regex_findall('\\w+:\\s*\\S+') | map('regex_replace', '^(\\w+):\\s*(\\S+)', '\\1:\\2') | map('split', ':') | items2dict
           }}
 
     - name: Ensure the output directory exists
