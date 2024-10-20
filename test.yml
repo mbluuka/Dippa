@@ -1,35 +1,43 @@
 ---
-- name: Get login.defs parameters
-  hosts: all
-  gather_facts: no
-  tasks:
-    - name: Read login.defs file
-      slurp:
-        src: /etc/login.defs
-      register: login_defs_raw
-
-    - name: Parse login.defs content
-      set_fact:
-        login_defs_info: >-
-          {{
-            login_defs_raw.content | b64decode |
-            regex_findall('^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)\\s+(\\d+)', '\\1:\\2') |
-            map('split', ':') | list | items2dict
-          }}
-
-    - name: Ensure the output directory exists
-      file:
-        path: /tmp
-        state: directory
-
-    - name: Write the login_defs info to JSON file
-      copy:
-        dest: /tmp/sys_info.json
-        content: |
-          {
-            "login_defs": {{ login_defs_info | to_json }}
-          }
-
-    - name: Display found parameters
-      debug:
-        msg: "{{ login_defs_info }}"
+  - name: Get login.defs parameters
+    hosts: all
+    gather_facts: no
+    tasks:
+      - name: Read login.defs file
+        slurp:
+          src: /etc/login.defs
+        register: login_defs_raw
+  
+      - name: Decode and prepare login.defs content
+        set_fact:
+          login_defs_lines: "{{ login_defs_raw.content | b64decode | split('\n') }}"
+  
+      - name: Filter login.defs parameters
+        set_fact:
+          login_defs_info: >-
+            {{
+              login_defs_lines | 
+              select('match', '^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)') | 
+              map('trim') | 
+              map('regex_replace', '^([A-Z_]+)\\s+(\\d+)', '\\1:\\2') | 
+              map('split', ':') | 
+              list | items2dict
+            }}
+  
+      - name: Ensure output directory exists
+        file:
+          path: /tmp
+          state: directory
+  
+      - name: Write login_defs info to JSON file
+        copy:
+          dest: /tmp/sys_info.json
+          content: |
+            {
+              "login_defs": {{ login_defs_info | to_json }}
+            }
+  
+      - name: Display found parameters
+        debug:
+          msg: "{{ login_defs_info }}"
+  
