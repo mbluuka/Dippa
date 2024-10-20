@@ -13,15 +13,15 @@
 
     - name: Анализ параметров из login.defs
       set_fact:
-        login_defs_info: >
-          {%- set result = {} %}
+        login_defs_info: > 
+          {%- set result = [] %}
           {%- for line in (login_defs_raw.content | b64decode).split('\n') %}
           {%- if line is match('^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)') %}
           {%- set key_value = line.split() %}
-          {%- do result.update({key_value[0]: key_value[1]}) %}
+          {%- set _ = result.append({ key_value[0]: key_value[1] }) %}
           {%- endif %}
           {%- endfor %}
-          {{ result | default({}) }}
+          {{ result | items2dict }}
 
     - name: Проверка и вывод параметров login_defs
       debug:
@@ -39,3 +39,4 @@
     - name: Печать сообщения об успешном экспорте
       debug:
         msg: "Данные успешно экспортированы в файл '/tmp/sys_info.json'."
+
