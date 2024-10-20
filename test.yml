@@ -1,0 +1,42 @@
+---
+- name: Получение параметров из login.defs
+  hosts: all
+  become: true
+  become_method: sudo
+  gather_facts: false
+  tasks:
+
+    - name: Чтение файла /etc/login.defs
+      slurp:
+        src: /etc/login.defs
+      register: login_defs_raw
+
+    - name: Анализ параметров из login.defs
+      set_fact:
+        login_defs_info: >
+          {{
+            (login_defs_raw.content | b64decode).split('\n') |
+            select('search', 'PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT') |
+            map('split', ' ') |
+            map('map', 'trim') |
+            map('list') |
+            list | 
+            items2dict
+          }}
+    
+    - name: Проверка и вывод параметров login_defs
+      debug:
+        msg: "{{ item.key }}: {{ item.value }}"
+      loop: "{{ login_defs_info | dict2items }}"
+
+    - name: Экспорт данных в JSON
+      copy:
+        dest: /tmp/sys_info.json
+        content: |
+          {
+            "login_defs": {{ login_defs_info | to_nice_json | replace('\n', '') }}
+          }
+
+    - name: Печать сообщения об успешном экспорте
+      debug:
+        msg: "Данные успешно экспортированы в файл '/tmp/sys_info.json'."
