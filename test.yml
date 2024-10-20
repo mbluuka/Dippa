@@ -1,42 +1,33 @@
 ---
-- name: Получение параметров из login.defs
+- name: Get login.defs parameters
   hosts: all
-  become: true
-  become_method: sudo
-  gather_facts: false
+  gather_facts: no
   tasks:
-
-    - name: Чтение файла /etc/login.defs
+    - name: Read login.defs file
       slurp:
         src: /etc/login.defs
       register: login_defs_raw
 
-    - name: Анализ параметров из login.defs
+    - name: Parse login.defs content
       set_fact:
-        login_defs_info: > 
-          {%- set result = [] %}
-          {%- for line in (login_defs_raw.content | b64decode).split('\n') %}
-          {%- if line is match('^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)') %}
-          {%- set key_value = line.split() %}
-          {%- set _ = result.append({ key_value[0]: key_value[1] }) %}
-          {%- endif %}
-          {%- endfor %}
-          {{ result | items2dict }}
+        login_defs_info: >-
+          {{
+            login_defs_raw.content | b64decode | splitlines | map('regex_replace', '^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)\s+(.*)', '\\1:\\2') | select('search', '^') | map('split', ':') | list | items2dict
+          }}
 
-    - name: Проверка и вывод параметров login_defs
-      debug:
-        msg: "{{ item.key }}: {{ item.value }}"
-      loop: "{{ login_defs_info | dict2items }}"
+    - name: Ensure the output directory exists
+      file:
+        path: /tmp
+        state: directory
 
-    - name: Экспорт данных в JSON
+    - name: Write the login_defs info to JSON file
       copy:
         dest: /tmp/sys_info.json
         content: |
           {
-            "login_defs": {{ login_defs_info | to_nice_json | replace('\n', '') }}
+            "login_defs": {{ login_defs_info | to_json }}
           }
 
-    - name: Печать сообщения об успешном экспорте
+    - name: Display found parameters
       debug:
-        msg: "Данные успешно экспортированы в файл '/tmp/sys_info.json'."
-
+        msg: "{{ login_defs_info }}"
