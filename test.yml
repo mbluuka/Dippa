@@ -1,10 +1,64 @@
 ---
-  - name: Parse /etc/login.defs and export to JSON
-    hosts: hosts
-    gather_facts: no
-    become: yes
-  
-    tasks:
-    # В ожидании нового коммита
-  
-    
+- hosts: giss
+  become: true
+  tasks:
+
+    - name: Чтение файла /etc/pam.d/common-auth
+      block:
+        - name: Чтение содержимого файла
+          ansible.builtin.slurp:
+            src: /etc/pam.d/common-auth
+          register: common_auth_content
+
+        - name: Инициализация переменных
+          set_fact:
+            parameter_info: []
+            deny_value: ""
+
+        - name: Обработка строк файла
+          set_fact:
+            parameter_info: "{{ parameter_info + [item.param_dict] }}"
+            deny_value: "{{ item.deny_value | default(deny_value) }}"
+          loop: "{{ common_auth_content.content | b64decode | split('\n') | map('regex_replace', '^\s*(#.*)?$') | reject('equalto', '') | map('trim') | list }}"
+          vars:
+            param_dict: {}
+            deny_value: ""
+          delegate_to: localhost # Выполняем обработку строк на управляющей машине
+          when: item
+          ignore_errors: true # Игнорируем ошибки, если строка не соответствует шаблону
+
+        - name: Извлечение deny из pam_tally.so
+          set_fact:
+            deny_value: "{{ item.split('=')[1] }}"
+          loop: "{{ item.split() }}"
+          when: "'pam_tally.so' in item"
+          delegate_to: localhost
+          ignore_errors: true
+
+        - name: Извлечение параметров pam_cracklib
+          set_fact:
+            param_dict: "{{ param_dict | combine({'key': item.split('=')[0], 'value': item.split('=')[1]}) }}"
+          loop: "{{ item.split()[3:] }}"
+          when: "'pam_cracklib' in item and '=' in item"
+          delegate_to: localhost
+          ignore_errors: true
+
+        - name: Добавление deny в parameter_info, если оно есть
+          set_fact:
+            parameter_info: "{{ parameter_info + [{'deny': deny_value}] }}"
+          when: deny_value != ""
+          delegate_to: localhost
+
+        - name: Установка значения по умолчанию, если parameter_info пуст
+          set_fact:
+            parameter_info: "Шаблон pam_cracklib не найден в файле common-auth."
+          when: parameter_info | length == 0
+          delegate_to: localhost
+
+      rescue: # Обработка ошибок при чтении файла
+        - set_fact:
+            parameter_info: "Ошибка при проверке файла /etc/pam.d/common-auth"
+
+    - name: Вывод результатов
+      debug:
+        msg: "{{ parameter_info }}"

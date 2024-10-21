@@ -1,26 +1,45 @@
 import json
 
-def get_login_defs():
-    login_defs_info = {}
+def get_common_auth_info():
+    file_to_check = "/etc/pam.d/common-auth"
+    parameter_info = []
+    deny_value = None
 
     try:
-        with open('/etc/login.defs', 'r') as login_defs_config_file:
-            for line in login_defs_config_file:
-                if line.startswith('PASS_MIN_DAYS'):
-                    login_defs_info['PASS_MIN_DAYS'] = line.split()[1]
-                elif line.startswith('PASS_MAX_DAYS'):
-                    login_defs_info['PASS_MAX_DAYS'] = line.split()[1]
-                elif line.startswith('PASS_WARN_AGE'):
-                    login_defs_info['PASS_WARN_AGE'] = line.split()[1]
-                elif line.startswith('LOGIN_RETRIES'):
-                    login_defs_info['LOGIN_RETRIES'] = line.split()[1]
-                elif line.startswith('LOGIN_TIMEOUT'):
-                    login_defs_info['LOGIN_TIMEOUT'] = line.split()[1]
+        with open(file_to_check, 'r') as f:
+            for line in f:
+                stripped_line = line.strip()
+                if not stripped_line or stripped_line.startswith('#'):
+                    continue
+
+                parts = stripped_line.split()
+
+                # Проверяем pam_tally.so и извлекаем deny
+                if 'pam_tally.so' in parts:
+                    for param in parts:
+                        if param.startswith('deny='):
+                            deny_value = param.split('=')[1]
+
+                # Проверяем параметры pam_cracklib
+                if 'pam_cracklib' in parts:
+                    parameters = parts[3:]  # Пропускаем первые три элемента
+                    param_dict = {}
+                    for param in parameters:
+                        if '=' in param:
+                            key_value = param.split('=')
+                            param_dict[key_value[0]] = key_value[1]
+                    parameter_info.append(param_dict)
 
     except Exception as e:
-        return f"Возникла ошибка во время чтения файла login.defs: {str(e)}"
+        return f"Ошибка при проверке файла {file_to_check}: {str(e)}"
 
-    return login_defs_info
+    if deny_value is not None:
+        parameter_info.append({'deny': deny_value})
+
+    if parameter_info:
+        return parameter_info
+    
+    return "Шаблон pam_cracklib не найден в файле common-auth."
 
 
 
@@ -30,19 +49,20 @@ def export_to_json(data, filename):
 
 
 if __name__ == "__main__":
-    log_inf = get_login_defs()
+    parameter_info = get_common_auth_info()
 
     # Для более структурированного вывода login_defs
-    if isinstance(log_inf, dict) and log_inf:
-        print("\nНайдены параметры в login_defs:")
-        for key, value in log_inf.items():
-            print(f"{key}: {value}")
+    if isinstance(parameter_info, list):
+        print("\nНайдены параметры pam_cracklib в common-auth:")
+        for params in parameter_info:
+            for key, value in params.items():
+                print(f"{key}: {value}")
     else:
-        print("\nНе удалось найти параметры в login_defs или файл пуст.")
+        print(parameter_info)
 
     export_to_json({
 
-        'login_defs': log_inf
+        'login_defs': parameter_info
 
     }, 'sys_info.json')
     
