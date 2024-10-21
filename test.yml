@@ -15,12 +15,8 @@
 
     - name: Combine parsed parameters
       set_fact:
-        combined_params: []
+        combined_params: "{{ combined_params | default([]) + [{'minlen': item.0, 'dcredit': item.1, 'ucredit': item.2, 'lcredit': item.3}] }}"
       loop: "{{ cracklib_params }}"
-      loop_control:
-        index_var: index
-      set_fact:
-        combined_params: "{{ combined_params + [{'minlen': item.0, 'dcredit': item.1, 'ucredit': item.2, 'lcredit': item.3}] }}"
 
     - name: Add deny parameter to combined params
       set_fact:
