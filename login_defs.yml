@@ -39,7 +39,7 @@
       when: login_defs_info | length > 0
   
   
-    # Preserve JSON on the controller (localhost) - "in progress"
+    # Preserve JSON on the controller (localhost) - well done work
     - name: Export to JSON on Controller
       copy:
         content: "{{ login_defs_info | to_json(ensure_ascii=False, indent=4) }}"
