@@ -19,13 +19,13 @@
           set_fact:
             parameter_info: "{{ parameter_info + [item.param_dict] }}"
             deny_value: "{{ item.deny_value | default(deny_value) }}"
-          loop: "{{ common_auth_content.content | b64decode | split('\n') | map('regex_replace', '^\s*(#.*)?$') | reject('equalto', '') | map('trim') | list }}"
+          loop: "{{ common_auth_content.content | b64decode | split('\n') | map('regex_replace', r'^\s*(#.*)?$') | reject('equalto', '') | map('trim') | list }}"
           vars:
             param_dict: {}
             deny_value: ""
-          delegate_to: localhost # Выполняем обработку строк на управляющей машине
+          delegate_to: localhost
           when: item
-          ignore_errors: true # Игнорируем ошибки, если строка не соответствует шаблону
+          ignore_errors: true
 
         - name: Извлечение deny из pam_tally.so
           set_fact:
@@ -55,7 +55,7 @@
           when: parameter_info | length == 0
           delegate_to: localhost
 
-      rescue: # Обработка ошибок при чтении файла
+      rescue:
         - set_fact:
             parameter_info: "Ошибка при проверке файла /etc/pam.d/common-auth"
 
