@@ -126,6 +126,7 @@ if __name__ == "__main__":
     pam_password_info = get_common_password_info()
     pam_auth_info = get_common_auth_info()
     login_defs_info = get_login_defs()
+    chage_info = get_chage_info()
 
     # Для более структурированного вывода login_defs
     if isinstance(login_defs_info, dict) and login_defs_info:
@@ -156,6 +157,7 @@ if __name__ == "__main__":
         'pam_cracklib_password': pam_password_info,
         'pam_cracklib_auth': pam_auth_info,
         'login_defs': login_defs_info,
+        'chage_info': chage_info
     }, 'system_info.json')
 
     print("\nДанные успешно экспортированы в файл 'system_info.json'.")
