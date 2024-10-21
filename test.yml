@@ -1,35 +1,52 @@
 ---
-- name: Get login.defs parameters
-  hosts: all
-  gather_facts: no
-  tasks:
-    - name: Read login.defs file
-      slurp:
-        src: /etc/login.defs
-      register: login_defs_raw
-
-    - name: Parse login.defs content
+  - name: Parse /etc/login.defs and export to JSON
+    hosts: hosts
+    gather_facts: no
+    become: yes
+  
+    tasks:
+    - name: Initialize login_defs_info fact
       set_fact:
-        login_defs_info: >-
-          {{
-            login_defs_raw.content | b64decode |
-            regex_findall('^(PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT)\\s+(\\d+)', '\\1:\\2') |
-            map('split', ':') | list | items2dict
-          }}
-
-    - name: Ensure the output directory exists
-      file:
-        path: /tmp
-        state: directory
-
-    - name: Write the login_defs info to JSON file
-      copy:
-        dest: /tmp/sys_info.json
-        content: |
-          {
-            "login_defs": {{ login_defs_info | to_json }}
-          }
-
-    - name: Display found parameters
+        login_defs_info: {}
+  
+    - name: Read /etc/login.defs
+      shell:
+        cmd: grep -E '^((PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT))' /etc/login.defs
+      register: login_defs_output
+      ignore_errors: yes
+  
+    - name: Parse output to dictionary
+      set_fact:
+        login_defs_info: "{{ login_defs_info | combine({item.split()[0]: item.split()[1]}) }}"
+      loop: "{{ login_defs_output.stdout_lines }}"
+      when: item.split()[0] in ['PASS_MIN_DAYS', 'PASS_MAX_DAYS', 'PASS_WARN_AGE', 'LOGIN_RETRIES', 'LOGIN_TIMEOUT']
+  
+    - name: Debug login_defs_info
       debug:
-        msg: "{{ login_defs_info }}"
+        var: login_defs_info
+  
+    - name: Check if login_defs_info is not empty
+      debug:
+        msg: "login_defs_info is empty, skipping JSON export"
+      when: login_defs_info | length == 0
+  
+    # Preserve JSON on the target hosts - well done work
+    - name: Export to JSON on Targets
+      copy:
+        content: "{{ login_defs_info | to_json(ensure_ascii=False, indent=4) }}"
+        dest: /tmp/login_defs_info_target.json
+        mode: '0644'
+      when: login_defs_info | length > 0
+  
+  
+    # Preserve JSON on the controller (localhost) - "in progress"
+    - name: Export to JSON on Controller
+      copy:
+        content: "{{ login_defs_info | to_json(ensure_ascii=False, indent=4) }}"
+        dest: /tmp/login_defs_info_controller.json
+        mode: '0644'
+      delegate_to: localhost
+      run_once: true
+      when: login_defs_info | length > 0
+  
+    
