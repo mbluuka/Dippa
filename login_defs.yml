@@ -1,6 +1,6 @@
 ---
   - name: Parse /etc/login.defs and export to JSON
-    hosts: hosts
+    hosts: giss
     gather_facts: no
     become: yes
   
