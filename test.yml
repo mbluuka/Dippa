@@ -10,49 +10,20 @@
 
     - name: Parse the content of common-auth
       set_fact:
-        pam_parameters: |
-          {% set pam_tally_deny = None %}
-          {% set cracklib_params = [] %}
-          {% for line in common_auth_content.content | b64decode | split('\n') %}
-            {% set line = line.strip() %}
-            {% if line and not line.startswith('#') %}
-              {% set parts = line.split() %}
+        pam_parameters: "{{ common_auth_content.content | b64decode | regex_findall('pam_tally\\.so.*deny=([0-9]+)') | list }}"
+        cracklib_params: "{{ common_auth_content.content | b64decode | regex_findall('pam_cracklib\\.so.*minlen=([0-9]+).*dcredit=([0-9]+).*ucredit=([0-9]+).*lcredit=([0-9]+).*') | list }}"
 
-              {% if 'pam_tally.so' in parts %}
-                {% for part in parts %}
-                  {% if part.startswith('deny=') %}
-                    {% set pam_tally_deny = part.split('=')[1] %}
-                  {% endif %}
-                {% endfor %}
-              {% endif %}
-
-              {% if 'pam_cracklib' in parts %}
-                {% set params = parts[3:] %}
-                {% set param_dict = {} %}
-                {% for param in params %}
-                  {% if '=' in param %}
-                    {% set key_value = param.split('=') %}
-                    {% set _ = param_dict.update({key_value[0]: key_value[1]}) %}
-                  {% endif %}
-                {% endfor %}
-                {% set _ = cracklib_params.append(param_dict) %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-
-          {% if pam_tally_deny is not none %}
-            {% set _ = cracklib_params.append({'deny': pam_tally_deny}) %}
-          {% endif %}
-
-          {{ cracklib_params }}
+    - name: Combine parsed parameters
+      set_fact:
+        combined_params: "{{ [ {'deny': pam_parameters[0]} ] + [{'minlen': item.0, 'dcredit': item.1, 'ucredit': item.2, 'lcredit': item.3} for item in cracklib_params] }}"
 
     - name: Print parsed parameters
       debug:
-        var: pam_parameters
+        var: combined_params
 
     - name: Save pam.d information to JSON on remote machine
       copy:
-        content: "{{ pam_parameters | to_nice_json }}"
+        content: "{{ combined_params | to_nice_json }}"
         dest: /tmp/sys_info.json
 
     - name: Fetch JSON file to local machine
