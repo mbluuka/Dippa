@@ -13,6 +13,14 @@
         pam_parameters: "{{ common_auth_content.content | b64decode | regex_findall('pam_tally\\.so.*deny=([0-9]+)') | list }}"
         cracklib_params: "{{ common_auth_content.content | b64decode | regex_findall('pam_cracklib\\.so.*minlen=([0-9]+).*dcredit=([0-9]+).*ucredit=([0-9]+).*lcredit=([0-9]+).*') | list }}"
 
+    - name: Debug content of common-auth pam_parameters
+      debug:
+        var: pam_parameters
+
+    - name: Debug content of common-auth cracklib_params
+      debug:
+        var: cracklib_params
+
     - name: Combine parsed parameters
       set_fact:
         combined_params: "{{ combined_params | default([]) + [{'minlen': item.0, 'dcredit': item.1, 'ucredit': item.2, 'lcredit': item.3}] }}"
