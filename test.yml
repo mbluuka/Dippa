@@ -1,64 +1,65 @@
 ---
-- hosts: giss
-  become: true
+- name: Parse and export pam.d common-auth information
+  hosts: all
+  become: yes
   tasks:
 
-    - name: Чтение файла /etc/pam.d/common-auth
-      block:
-        - name: Чтение содержимого файла
-          ansible.builtin.slurp:
-            src: /etc/pam.d/common-auth
-          register: common_auth_content
+    - name: Read the /etc/pam.d/common-auth file
+      slurp:
+        src: /etc/pam.d/common-auth
+      register: common_auth_content
 
-        - name: Инициализация переменных
-          set_fact:
-            parameter_info: []
-            deny_value: ""
+    - name: Parse the content of common-auth
+      set_fact:
+        pam_parameters: |
+          {% set pam_tally_deny = None %}
+          {% set cracklib_params = [] %}
+          {% for line in common_auth_content.content | b64decode | splitlines %}
+            {% set line = line.strip() %}
+            {% if not line or line.startswith('#') %}
+              {% continue %}
+            {% endif %}
+            
+            {% set parts = line.split() %}
+            
+            {% if 'pam_tally.so' in parts %}
+              {% for part in parts %}
+                {% if part.startswith('deny=') %}
+                  {% set pam_tally_deny = part.split('=')[1] %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
 
-        - name: Обработка строк файла
-          set_fact:
-            parameter_info: "{{ parameter_info + [item.param_dict] }}"
-            deny_value: "{{ item.deny_value | default(deny_value) }}"
-          loop: "{{ common_auth_content.content | b64decode | split('\n') | map('regex_replace', r'^\s*(#.*)?$') | reject('equalto', '') | map('trim') | list }}"
-          vars:
-            param_dict: {}
-            deny_value: ""
-          delegate_to: localhost
-          when: item
-          ignore_errors: true
+            {% if 'pam_cracklib' in parts %}
+              {% set params = parts[3:] %}
+              {% set param_dict = {} %}
+              {% for param in params %}
+                {% if '=' in param %}
+                  {% set key_value = param.split('=') %}
+                  {% set _ = param_dict.update({key_value[0]: key_value[1]}) %}
+                {% endif %}
+              {% endfor %}
+              {% set _ = cracklib_params.append(param_dict) %}
+            {% endif %}
+          {% endfor %}
 
-        - name: Извлечение deny из pam_tally.so
-          set_fact:
-            deny_value: "{{ item.split('=')[1] }}"
-          loop: "{{ item.split() }}"
-          when: "'pam_tally.so' in item"
-          delegate_to: localhost
-          ignore_errors: true
+          {% if pam_tally_deny is not none %}
+            {% set _ = cracklib_params.append({'deny': pam_tally_deny}) %}
+          {% endif %}
 
-        - name: Извлечение параметров pam_cracklib
-          set_fact:
-            param_dict: "{{ param_dict | combine({'key': item.split('=')[0], 'value': item.split('=')[1]}) }}"
-          loop: "{{ item.split()[3:] }}"
-          when: "'pam_cracklib' in item and '=' in item"
-          delegate_to: localhost
-          ignore_errors: true
+          {{ cracklib_params }}
 
-        - name: Добавление deny в parameter_info, если оно есть
-          set_fact:
-            parameter_info: "{{ parameter_info + [{'deny': deny_value}] }}"
-          when: deny_value != ""
-          delegate_to: localhost
-
-        - name: Установка значения по умолчанию, если parameter_info пуст
-          set_fact:
-            parameter_info: "Шаблон pam_cracklib не найден в файле common-auth."
-          when: parameter_info | length == 0
-          delegate_to: localhost
-
-      rescue:
-        - set_fact:
-            parameter_info: "Ошибка при проверке файла /etc/pam.d/common-auth"
-
-    - name: Вывод результатов
+    - name: Print parsed parameters
       debug:
-        msg: "{{ parameter_info }}"
+        var: pam_parameters
+
+    - name: Save pam.d information to JSON on remote machine
+      copy:
+        content: "{{ pam_parameters | to_nice_json }}"
+        dest: /tmp/sys_info.json
+
+    - name: Fetch JSON file to local machine
+      fetch:
+        src: /tmp/sys_info.json
+        dest: /tmp/sys_info.json
+        flat: yes
