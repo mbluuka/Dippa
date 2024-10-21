@@ -13,11 +13,11 @@
         pam_parameters: |
           {% set pam_tally_deny = None %}
           {% set cracklib_params = [] %}
-          {% for line in common_auth_content.content | b64decode | splitlines %}
+          {% for line in common_auth_content.content | b64decode | split('\n') %}
             {% set line = line.strip() %}
-            {% if line and not line.startswith('#') %} 
+            {% if line and not line.startswith('#') %}
               {% set parts = line.split() %}
-            
+
               {% if 'pam_tally.so' in parts %}
                 {% for part in parts %}
                   {% if part.startswith('deny=') %}
