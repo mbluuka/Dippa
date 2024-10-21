@@ -1,52 +1,64 @@
 ---
-  - name: Parse /etc/login.defs and export to JSON
-    hosts: hosts
-    gather_facts: no
-    become: yes
-  
-    tasks:
-    - name: Initialize login_defs_info fact
-      set_fact:
-        login_defs_info: {}
-  
-    - name: Read /etc/login.defs
-      shell:
-        cmd: grep -E '^((PASS_MIN_DAYS|PASS_MAX_DAYS|PASS_WARN_AGE|LOGIN_RETRIES|LOGIN_TIMEOUT))' /etc/login.defs
-      register: login_defs_output
-      ignore_errors: yes
-  
-    - name: Parse output to dictionary
-      set_fact:
-        login_defs_info: "{{ login_defs_info | combine({item.split()[0]: item.split()[1]}) }}"
-      loop: "{{ login_defs_output.stdout_lines }}"
-      when: item.split()[0] in ['PASS_MIN_DAYS', 'PASS_MAX_DAYS', 'PASS_WARN_AGE', 'LOGIN_RETRIES', 'LOGIN_TIMEOUT']
-  
-    - name: Debug login_defs_info
+- hosts: giss
+  become: true
+  tasks:
+
+    - name: Чтение файла /etc/pam.d/common-auth
+      block:
+        - name: Чтение содержимого файла
+          ansible.builtin.slurp:
+            src: /etc/pam.d/common-auth
+          register: common_auth_content
+
+        - name: Инициализация переменных
+          set_fact:
+            parameter_info: []
+            deny_value: ""
+
+        - name: Обработка строк файла
+          set_fact:
+            parameter_info: "{{ parameter_info + [item.param_dict] }}"
+            deny_value: "{{ item.deny_value | default(deny_value) }}"
+          loop: "{{ common_auth_content.content | b64decode | split('\n') | map('regex_replace', r'^\s*(#.*)?$') | reject('equalto', '') | map('trim') | list }}"
+          vars:
+            param_dict: {}
+            deny_value: ""
+          delegate_to: localhost
+          when: item
+          ignore_errors: true
+
+        - name: Извлечение deny из pam_tally.so
+          set_fact:
+            deny_value: "{{ item.split('=')[1] }}"
+          loop: "{{ item.split() }}"
+          when: "'pam_tally.so' in item"
+          delegate_to: localhost
+          ignore_errors: true
+
+        - name: Извлечение параметров pam_cracklib
+          set_fact:
+            param_dict: "{{ param_dict | combine({'key': item.split('=')[0], 'value': item.split('=')[1]}) }}"
+          loop: "{{ item.split()[3:] }}"
+          when: "'pam_cracklib' in item and '=' in item"
+          delegate_to: localhost
+          ignore_errors: true
+
+        - name: Добавление deny в parameter_info, если оно есть
+          set_fact:
+            parameter_info: "{{ parameter_info + [{'deny': deny_value}] }}"
+          when: deny_value != ""
+          delegate_to: localhost
+
+        - name: Установка значения по умолчанию, если parameter_info пуст
+          set_fact:
+            parameter_info: "Шаблон pam_cracklib не найден в файле common-auth."
+          when: parameter_info | length == 0
+          delegate_to: localhost
+
+      rescue:
+        - set_fact:
+            parameter_info: "Ошибка при проверке файла /etc/pam.d/common-auth"
+
+    - name: Вывод результатов
       debug:
-        var: login_defs_info
-  
-    - name: Check if login_defs_info is not empty
-      debug:
-        msg: "login_defs_info is empty, skipping JSON export"
-      when: login_defs_info | length == 0
-  
-    # Preserve JSON on the target hosts - well done work
-    - name: Export to JSON on Targets
-      copy:
-        content: "{{ login_defs_info | to_json(ensure_ascii=False, indent=4) }}"
-        dest: /tmp/login_defs_info_target.json
-        mode: '0644'
-      when: login_defs_info | length > 0
-  
-  
-    # Preserve JSON on the controller (localhost) - well done work
-    - name: Export to JSON on Controller
-      copy:
-        content: "{{ login_defs_info | to_json(ensure_ascii=False, indent=4) }}"
-        dest: /tmp/login_defs_info_controller.json
-        mode: '0644'
-      delegate_to: localhost
-      run_once: true
-      when: login_defs_info | length > 0
-  
-    
+        msg: "{{ parameter_info }}"
