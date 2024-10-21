@@ -15,9 +15,18 @@
 
     - name: Combine parsed parameters
       set_fact:
-        combined_params: "{{ [ {'deny': pam_parameters[0]} ] + [{'minlen': item.0, 'dcredit': item.1, 'ucredit': item.2, 'lcredit': item.3} for item in cracklib_params] }}"
+        combined_params: []
+      loop: "{{ cracklib_params }}"
+      loop_control:
+        index_var: index
+      set_fact:
+        combined_params: "{{ combined_params + [{'minlen': item.0, 'dcredit': item.1, 'ucredit': item.2, 'lcredit': item.3}] }}"
 
-    - name: Print parsed parameters
+    - name: Add deny parameter to combined params
+      set_fact:
+        combined_params: "{{ [{'deny': pam_parameters[0]}] + combined_params }}"
+
+    - name: Debug parsed parameters
       debug:
         var: combined_params
 
@@ -31,3 +40,8 @@
         src: /tmp/sys_info.json
         dest: /tmp/sys_info.json
         flat: yes
+
+    - name: Debug parsed parameters from file
+      debug:
+        msg: "{{ lookup('file', '/tmp/sys_info.json') }}"
+      delegate_to: localhost
