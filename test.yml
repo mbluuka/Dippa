@@ -1,4 +1,3 @@
----
 - name: Parse and export pam.d common-auth information
   hosts: all
   become: yes
@@ -16,30 +15,28 @@
           {% set cracklib_params = [] %}
           {% for line in common_auth_content.content | b64decode | splitlines %}
             {% set line = line.strip() %}
-            {% if not line or line.startswith('#') %}
-              {% continue %}
-            {% endif %}
+            {% if line and not line.startswith('#') %} 
+              {% set parts = line.split() %}
             
-            {% set parts = line.split() %}
-            
-            {% if 'pam_tally.so' in parts %}
-              {% for part in parts %}
-                {% if part.startswith('deny=') %}
-                  {% set pam_tally_deny = part.split('=')[1] %}
-                {% endif %}
-              {% endfor %}
-            {% endif %}
+              {% if 'pam_tally.so' in parts %}
+                {% for part in parts %}
+                  {% if part.startswith('deny=') %}
+                    {% set pam_tally_deny = part.split('=')[1] %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
 
-            {% if 'pam_cracklib' in parts %}
-              {% set params = parts[3:] %}
-              {% set param_dict = {} %}
-              {% for param in params %}
-                {% if '=' in param %}
-                  {% set key_value = param.split('=') %}
-                  {% set _ = param_dict.update({key_value[0]: key_value[1]}) %}
-                {% endif %}
-              {% endfor %}
-              {% set _ = cracklib_params.append(param_dict) %}
+              {% if 'pam_cracklib' in parts %}
+                {% set params = parts[3:] %}
+                {% set param_dict = {} %}
+                {% for param in params %}
+                  {% if '=' in param %}
+                    {% set key_value = param.split('=') %}
+                    {% set _ = param_dict.update({key_value[0]: key_value[1]}) %}
+                  {% endif %}
+                {% endfor %}
+                {% set _ = cracklib_params.append(param_dict) %}
+              {% endif %}
             {% endif %}
           {% endfor %}
 
