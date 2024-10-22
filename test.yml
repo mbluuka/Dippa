@@ -1,5 +1,5 @@
 - name: Parse and export pam.d common-auth information
-  hosts: all
+  hosts: giss
   become: yes
   tasks:
 
