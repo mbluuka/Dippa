@@ -10,22 +10,19 @@
 
     - name: Parse the content of common-auth
       set_fact:
-        pam_parameters: "{{ common_auth_content.content | b64decode | regex_findall('pam_tally\\.so.*deny=([0-9]+)') | list }}"
-        cracklib_params: "{{ common_auth_content.content | b64decode | regex_findall('pam_cracklib\\.so.*minlen=([0-9]+).*dcredit=([0-9]+).*ucredit=([0-9]+).*lcredit=([0-9]+).*') | list }}"
-
+        pam_parameters:
+        deny: "{{ common_auth_content.content | b64decode | regex_findall('pam_tally\\.so.*deny=([0-9]+)') | first | default('') }}"
+        lock_time: "{{ common_auth_content.content | b64decode | regex_findall('pam_tally\\.so.*lock_time=([0-9]+)') | first | default('') }}"
+        unlock_time: "{{ common_auth_content.content | b64decode | regex_findall('pam_tally\\.so.*unlock_time=([0-9]+)') | first | default('') }}"
+        
     - name: Initialize combined params
       set_fact:
         combined_params: []
 
-    - name: Combine parsed parameters
-      set_fact:
-        combined_params: "{{ combined_params + [{'minlen': item.0, 'dcredit': item.1, 'ucredit': item.2, 'lcredit': item.3}] }}"
-      loop: "{{ cracklib_params }}"
-
     - name: Add deny parameter to combined params
       set_fact:
-        combined_params: "{{ [{'deny': pam_parameters[0]}] + combined_params }}"
-      when: pam_parameters | length > 0
+        combined_params: "{{ combined_params + [{'deny': deny, 'lock_time': lock_time, 'unlock_time': unlock_time}] }}"
+      when: deny is defined or lock_time is defined or unlock_time is defined
 
     - name: Debug parsed parameters
       debug:
