@@ -31,15 +31,15 @@
     - name: Save pam.d information to JSON on remote machine
       copy:
         content: "{{ combined_params | to_nice_json }}"
-        dest: /tmp/sys_info.json
+        dest: /tmp/common_auth.json
 
     - name: Fetch JSON file to local machine
       fetch:
-        src: /tmp/sys_info.json
-        dest: /tmp/sys_info.json
+        src: /tmp/common_auth.json
+        dest: /tmp/common_auth.json
         flat: yes
 
     - name: Debug parsed parameters from file
       debug:
-        msg: "{{ lookup('file', '/tmp/sys_info.json') }}"
+        msg: "{{ lookup('file', '/tmp/common_auth.json') }}"
       delegate_to: localhost
