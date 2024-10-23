@@ -7,3 +7,17 @@
 ![GitHub Repo stars](https://img.shields.io/github/stars/mbluuka/Dippa)
 ![GitHub issues](https://img.shields.io/github/issues/mbluuka/Dippa)
 
+## Установка (Linux)
+1. Клонирование репозитория
+
+```git clone https://github.com/mbluuka/Dippa.git```
+
+2. Переход в директорию
+
+```cd Dippa```
+
+3. Запуск сценария
+
+```ansible-playbook название_плейбука.yml --ask-become-pass```
+
+4. 
