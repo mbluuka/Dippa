@@ -1,12 +1,12 @@
 # ALSEC: controletor
-Модуль проекта по автоматизированной настройке конфигурирования контролирования
-<!--Попытка добавить бейджи-->
+Модуль проекта по автоматизированной настройке конфигурирования контролирования 
+<!--Бейджи-->
+:shipit:
 ![Static Badge](https://img.shields.io/badge/Mbluuka-ALSEContr-ALSEContr)
 ![GitHub top language](https://img.shields.io/github/languages/top/mbluuka/Dippa)
-![GitHub](https://img.shields.io/github/license/mbluuka/Dippa)
 ![GitHub Repo stars](https://img.shields.io/github/stars/mbluuka/Dippa)
-![GitHub issues](https://img.shields.io/github/issues/mbluuka/Dippa)
-
+:shipit:
+<!--Установка-->
 ## Установка (Linux)
 1. Клонирование репозитория
 
@@ -20,4 +20,6 @@
 
 ```ansible-playbook название_плейбука.yml --ask-become-pass```
 
-4. 
+4. Получение результата
+
+После выполнения сценария следует перейти по директории `cd /etc/tmp/`, в которой Вы найдете JSON-файлы 
