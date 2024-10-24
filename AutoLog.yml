@@ -1,0 +1,21 @@
+# Config file autologin:
+# /etc/X11/fly-dm/fly-dmrc
+
+- name: Parse and export autologin and other information
+  hosts: giss
+  become: yes
+  tasks:
+
+    - name: Read the /etc/X11/fly-dm/fly-dmrc file
+      slurp:
+        src: /etc/X11/fly-dm/fly-dmrc
+      register: fly_dmrc_content
+
+    - name: Parse fly-dmrc parameters
+  set_fact:
+    fly_dm_parameters:
+      AutoLoginEnable: "{{ fly_dm_content.content | regex_findall('^AutoLoginEnable=(\\w+)', '\\1') | first | default('') }}"
+      AutologinAgain: "{{ fly_dm_content.content | regex_findall('^AutologinAgain=(\\w+)', '\\1') | first | default('') }}"
+      AutoLoginDelay: "{{ fly_dm_content.content | regex_findall('^AutoLoginDelay=(\\d+)', '\\1') | first | default('') }}"
+      AutoLoginUser: "{{ fly_dm_content.content | regex_findall('^AutoLoginUser=(\\S+)', '\\1') | first | default('') }}"
+  
