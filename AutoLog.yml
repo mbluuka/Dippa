@@ -14,10 +14,10 @@
     - name: Parse fly-dmrc parameters
       set_fact:
         fly_dm_parameters:
-          AutoLoginEnable: "{{ fly_dm_content.content | regex_findall('^AutoLoginEnable=(\\w+)', '\\1') | first | default('') }}"
-          AutoLoginAgain: "{{ fly_dm_content.content | regex_findall('^AutoLoginAgain=(\\w+)', '\\1') | first | default('') }}"
-          AutoLoginDelay: "{{ fly_dm_content.content | regex_findall('^AutoLoginDelay=(\\d+)', '\\1') | first | default('') }}"
-          AutoLoginUser: "{{ fly_dm_content.content | regex_findall('^AutoLoginUser=(\\S+)', '\\1') | first | default('') }}"
+          AutoLoginEnable: "{{ fly_dmrc_content.content | regex_findall('^AutoLoginEnable=(\\w+)', '\\1') | first | default('') }}"
+          AutoLoginAgain: "{{ fly_dmrc_content.content | regex_findall('^AutoLoginAgain=(\\w+)', '\\1') | first | default('') }}"
+          AutoLoginDelay: "{{ fly_dmrc_content.content | regex_findall('^AutoLoginDelay=(\\d+)', '\\1') | first | default('') }}"
+          AutoLoginUser: "{{ fly_dmrc_content.content | regex_findall('^AutoLoginUser=(\\S+)', '\\1') | first | default('') }}"
     
     - name: Initialize combined parameters
       set_fact:
