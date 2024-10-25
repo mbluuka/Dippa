@@ -12,10 +12,44 @@
       register: fly_dmrc_content
 
     - name: Parse fly-dmrc parameters
-  set_fact:
-    fly_dm_parameters:
-      AutoLoginEnable: "{{ fly_dm_content.content | regex_findall('^AutoLoginEnable=(\\w+)', '\\1') | first | default('') }}"
-      AutologinAgain: "{{ fly_dm_content.content | regex_findall('^AutologinAgain=(\\w+)', '\\1') | first | default('') }}"
-      AutoLoginDelay: "{{ fly_dm_content.content | regex_findall('^AutoLoginDelay=(\\d+)', '\\1') | first | default('') }}"
-      AutoLoginUser: "{{ fly_dm_content.content | regex_findall('^AutoLoginUser=(\\S+)', '\\1') | first | default('') }}"
-  
+      set_fact:
+        fly_dm_parameters:
+          AutoLoginEnable: "{{ fly_dm_content.content | regex_findall('^AutoLoginEnable=(\\w+)', '\\1') | first | default('') }}"
+          AutoLoginAgain: "{{ fly_dm_content.content | regex_findall('^AutoLoginAgain=(\\w+)', '\\1') | first | default('') }}"
+          AutoLoginDelay: "{{ fly_dm_content.content | regex_findall('^AutoLoginDelay=(\\d+)', '\\1') | first | default('') }}"
+          AutoLoginUser: "{{ fly_dm_content.content | regex_findall('^AutoLoginUser=(\\S+)', '\\1') | first | default('') }}"
+    
+    - name: Initialize combined parameters
+      set_fact:
+        combined_params: []
+
+    - name: Add AutoLog information to combined_params
+      set_fact:
+        combined_params: "{{combined_params +
+         [{ 
+          'AutoLoginEnable': AutoLoginEnable,
+          'AutoLoginAgain': AutoLoginAgain,
+          'AutoLoginDelay': AutoLoginDelay,
+          'AutoLoginUser': AutoLoginUser}] 
+          }}"
+      when: AutoLoginEnable is defined or AutoLoginAgain is defined or AutoLoginDelay is defined or AutoLoginUser is defined
+
+    - name: Debug parsed parameters
+      debug:
+        var: combined_params
+      
+    - name: Save AutoLogin information to JSON on remote machine
+      copy: 
+        content: "{{ combined_params | to_nice_json }}"
+        dest: /tmp/AutoLogin.json
+    
+    - name: Fetch JSON file to local machine
+      fetch:
+        src: /tmp/AutoLogin.json
+        dest: /tmp/AutoLogin.json
+        flat: yes
+      
+    - name: Debug parsed parameters from file
+      debug:
+        msg: "{{ lookup('file', '/tmp/AutoLogin.json') }}"
+      delegate_to: localhost
