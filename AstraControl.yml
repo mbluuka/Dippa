@@ -1,7 +1,8 @@
 # Сценарий для контролирования настраивания:
-# * astra-audit-control
-# * astra-audit-network-control
+# + astra-audit-control
+# + astra-audit-network-control
 # * astra-bash-lock
+# * astra-commands-lock
 # * astra-digsig-control
 # 
 
@@ -29,18 +30,36 @@
         audit_files: "{{ audit_files | combine({item.item: (1 if item.stat.exists else 0)}) }}"
       loop: "{{ file_check_results.results }}"
 
+    - name: Проверка статуса astra-bash-lock
+      command: astra-bash-lock status
+      register: bash_lock_status
+
+    - name: Проверка статуса astra-commands-lock
+      command: astra-commands-lock status
+      register: commands_lock_status
+
+    - name: Проверка статуса astra-digsig-control
+      command: astra-digsig-control status
+      register: digsig_control_status
+
     - name: Сохранение результатов в JSON-файл на удаленном хосте
       copy:
-        content: "{{ audit_files | to_nice_json }}"
-        dest: /tmp/audit_files.json
+        content: |
+          {
+            "bash_lock": "{{ bash_lock_status.stdout | to_bool }}",
+            "commands_lock": "{{ commands_lock_status.stdout | to_bool }}",
+            "digsig_control": "{{ digsig_control_status.stdout | to_bool }}",
+            "audit_files": "{{ audit_files }}"
+          }
+        dest: /tmp/audit_control.json
 
     - name: Получение JSON-файла на локальный хост
       fetch:
-        src: /tmp/audit_files.json
-        dest: /tmp/audit_files.json
+        src: /tmp/audit_control.json
+        dest: /tmp/audit_control.json
         flat: yes
 
     - name: Вывод содержимого JSON-файла на локальном хосте
       debug:
-        msg: "{{ lookup('file', '/tmp/audit_files.json') }}"
+        msg: "{{ lookup('file', '/tmp/audit_control.json') }}"
       delegate_to: localhost
