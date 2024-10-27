@@ -32,14 +32,17 @@
 
     - name: Проверка статуса astra-bash-lock
       command: astra-bash-lock status
+      ignore_errors: yes
       register: bash_lock_status
 
     - name: Проверка статуса astra-commands-lock
       command: astra-commands-lock status
+      ignore_errors: yes
       register: commands_lock_status
 
     - name: Проверка статуса astra-digsig-control
       command: astra-digsig-control status
+      ignore_errors: yes
       register: digsig_control_status
 
     - name: Сохранение результатов в JSON-файл на удаленном хосте
