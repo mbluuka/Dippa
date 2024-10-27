@@ -6,40 +6,41 @@
 # 
 
 ---
-- hosts: all
+- hosts: giss
   become: true
-  gather_facts: false
-
   tasks:
-    - name: Создание локальной директории для JSON-файлов
-      file:
-        path: ./astra_reports
-        state: directory
-        mode: 0755
-      delegate_to: localhost
-      run_once: true
+    - name: Проверка наличия файлов Astra
+      stat:
+        path: "/etc/audit/rules.d/{{ item }}"
+      loop:
+        - astra-syslog.rules
+        - astra-syslog.rules.dpkg-dist
+        - audit.rules
+        - 10-parsec-nw.rules
+        - 10-parsec.rules
+      register: file_check_results
 
-    - name: Сбор информации о файлах Astra
+    - name: Создание словаря результатов
       set_fact:
-        astra_files:
-          astra-syslog.rules: "{{ lookup('stat', '/etc/audit/rules.d/astra-syslog.rules').stat.exists | ternary(1, 0) }}"
-          astra-syslog.rules.dpkg-dist: "{{ lookup('stat', '/etc/audit/rules.d/astra-syslog.rules.dpkg-dist').stat.exists | ternary(1, 0) }}"
-          audit.rules: "{{ lookup('stat', '/etc/audit/rules.d/audit.rules').stat.exists | ternary(1, 0) }}"
-          "10-parsec-nw.rules": "{{ lookup('stat', '/etc/audit/rules.d/10-parsec-nw.rules').stat.exists | ternary(1, 0) }}"
-          "10-parsec.rules": "{{ lookup('stat', '/etc/audit/rules.d/10-parsec.rules').stat.exists | ternary(1, 0) }}"
+        audit_files: {}
 
-    - name: Сохранение информации о файлах Astra в JSON на удаленной машине
+    - name: Заполнение словаря результатов
+      set_fact:
+        audit_files: "{{ audit_files | combine({item.item: (1 if item.stat.exists else 0)}) }}"
+      loop: "{{ file_check_results.results }}"
+
+    - name: Сохранение результатов в JSON-файл на удаленном хосте
       copy:
-        content: "{{ astra_files | to_nice_json }}"
-        dest: /tmp/astra_files.json
+        content: "{{ audit_files | to_nice_json }}"
+        dest: /tmp/audit_files.json
 
-    - name: Копирование JSON-файла на локальную машину
+    - name: Получение JSON-файла на локальный хост
       fetch:
-        src: /tmp/astra_files.json
-        dest: ./astra_reports/{{ inventory_hostname }}.json
+        src: /tmp/audit_files.json
+        dest: /tmp/audit_files.json
         flat: yes
 
-    - name: Вывод содержимого JSON-файла (локально)
+    - name: Вывод содержимого JSON-файла на локальном хосте
       debug:
-        msg: "{{ lookup('file', './astra_reports/{{ inventory_hostname }}.json') }}"
+        msg: "{{ lookup('file', '/tmp/audit_files.json') }}"
       delegate_to: localhost
