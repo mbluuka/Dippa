@@ -1,9 +1,9 @@
 # Сценарий для контролирования настраивания:
 # + astra-audit-control
 # + astra-audit-network-control
-# * astra-bash-lock
-# * astra-commands-lock
-# * astra-digsig-control
+# + astra-bash-lock
+# + astra-commands-lock
+# + astra-digsig-control
 # 
 
 ---
