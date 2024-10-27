@@ -52,13 +52,12 @@
             "bash_lock": {{ '1' if bash_lock_status.stdout == 'АКТИВНО' else '0' }},
             "commands_lock": {{ '1' if commands_lock_status.stdout == 'АКТИВНО' else '0' }},
             "digsig_control": {{ '1' if digsig_control_status.stdout == 'АКТИВНО' else '0' }},
-            "audit_files": {
-              "astra-syslog.rules": {{ audit_files['astra-syslog.rules'] }},
-              "astra-syslog.rules.dpkg-dist": {{ audit_files['astra-syslog.rules.dpkg-dist'] }},
-              "audit.rules": {{ audit_files['audit.rules'] }},
-              "10-parsec-nw.rules": {{ audit_files['10-parsec-nw.rules'] }},
-              "10-parsec.rules": {{ audit_files['10-parsec.rules'] }}
-            }
+            
+            "astra-syslog.rules": {{ audit_files['astra-syslog.rules'] }},
+            "astra-syslog.rules.dpkg-dist": {{ audit_files['astra-syslog.rules.dpkg-dist'] }},
+            "audit.rules": {{ audit_files['audit.rules'] }},
+            "10-parsec-nw.rules": {{ audit_files['10-parsec-nw.rules'] }},
+            "10-parsec.rules": {{ audit_files['10-parsec.rules'] }}
           }
         dest: /tmp/audit_control.json
 
