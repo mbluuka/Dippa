@@ -46,9 +46,9 @@
       copy:
         content: |
           {
-            "bash_lock": "{{ bash_lock_status.stdout | to_bool }}",
-            "commands_lock": "{{ commands_lock_status.stdout | to_bool }}",
-            "digsig_control": "{{ digsig_control_status.stdout | to_bool }}",
+            "bash_lock": "{{ '1' if bash_lock_status.stdout == 'АКТИВНО' else '0' }}",
+            "commands_lock": "{{ '1' if commands_lock_status.stdout == 'АКТИВНО' else '0' }}",
+            "digsig_control": "{{ '1' if digsig_control_status.stdout == 'АКТИВНО' else '0' }}",
             "audit_files": "{{ audit_files }}"
           }
         dest: /tmp/audit_control.json
