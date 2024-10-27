@@ -55,6 +55,3 @@
       debug:
         msg: "{{ lookup('file', '/tmp/AutoLogin.json') }}"
       delegate_to: localhost
-
-
-

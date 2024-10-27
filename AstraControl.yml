@@ -1,0 +1,45 @@
+# Сценарий для контролирования настраивания:
+# * astra-audit-control
+# * astra-audit-network-control
+# * astra-bash-lock
+# * astra-digsig-control
+# 
+
+---
+- hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Создание локальной директории для JSON-файлов
+      file:
+        path: ./astra_reports
+        state: directory
+        mode: 0755
+      delegate_to: localhost
+      run_once: true
+
+    - name: Сбор информации о файлах Astra
+      set_fact:
+        astra_files:
+          astra-syslog.rules: "{{ lookup('stat', '/etc/audit/rules.d/astra-syslog.rules').stat.exists | ternary(1, 0) }}"
+          astra-syslog.rules.dpkg-dist: "{{ lookup('stat', '/etc/audit/rules.d/astra-syslog.rules.dpkg-dist').stat.exists | ternary(1, 0) }}"
+          audit.rules: "{{ lookup('stat', '/etc/audit/rules.d/audit.rules').stat.exists | ternary(1, 0) }}"
+          "10-parsec-nw.rules": "{{ lookup('stat', '/etc/audit/rules.d/10-parsec-nw.rules').stat.exists | ternary(1, 0) }}"
+          "10-parsec.rules": "{{ lookup('stat', '/etc/audit/rules.d/10-parsec.rules').stat.exists | ternary(1, 0) }}"
+
+    - name: Сохранение информации о файлах Astra в JSON на удаленной машине
+      copy:
+        content: "{{ astra_files | to_nice_json }}"
+        dest: /tmp/astra_files.json
+
+    - name: Копирование JSON-файла на локальную машину
+      fetch:
+        src: /tmp/astra_files.json
+        dest: ./astra_reports/{{ inventory_hostname }}.json
+        flat: yes
+
+    - name: Вывод содержимого JSON-файла (локально)
+      debug:
+        msg: "{{ lookup('file', './astra_reports/{{ inventory_hostname }}.json') }}"
+      delegate_to: localhost
