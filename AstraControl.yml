@@ -29,7 +29,6 @@
       set_fact:
         audit_files: "{{ audit_files | combine({item.item: (1 if item.stat.exists else 0)}) }}"
       loop: "{{ file_check_results.results }}"
-      verbose: false
 
     - name: Проверка статуса astra-bash-lock
       command: astra-bash-lock status
