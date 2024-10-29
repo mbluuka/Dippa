@@ -1,0 +1,130 @@
+---
+- name: Combined Autologin and Audit Control Check
+  hosts: giss
+  become: yes
+  tasks:
+    # Autologin Section
+    - name: Read the /etc/X11/fly-dm/fly-dmrc file using grep
+      shell:
+        cmd: grep -E '^((AutoLoginEnable|AutoLoginAgain|AutoLoginDelay|AutoLoginUser))' /etc/X11/fly-dm/fly-dmrc
+      register: fly_dmrc_output
+      ignore_errors: yes
+
+    - name: Parse fly-dmrc parameters
+      set_fact:
+        AutoLoginEnable: "{{ fly_dmrc_output.stdout_lines | select('match', '^AutoLoginEnable=') | map('regex_replace', '^AutoLoginEnable=(.*)', '\\1') | first | default('') }}"
+        AutoLoginAgain: "{{ fly_dmrc_output.stdout_lines | select('match', '^AutoLoginAgain=') | map('regex_replace', '^AutoLoginAgain=(.*)', '\\1') | first | default('') }}"
+        AutoLoginDelay: "{{ fly_dmrc_output.stdout_lines | select('match', '^AutoLoginDelay=') | map('regex_replace', '^AutoLoginDelay=(.*)', '\\1') | first | default('') }}"
+        AutoLoginUser: "{{ fly_dmrc_output.stdout_lines | select('match', '^AutoLoginUser=') | map('regex_replace', '^AutoLoginUser=(.*)', '\\1') | first | default('') }}"
+
+    - name: Initialize combined parameters
+      set_fact:
+        combined_params: []
+
+    - name: Add AutoLog information to combined_params
+      set_fact:
+        combined_params: "{{ combined_params + [{'AutoLoginEnable': AutoLoginEnable, 'AutoLoginAgain': AutoLoginAgain, 'AutoLoginDelay': AutoLoginDelay, 'AutoLoginUser': AutoLoginUser}] }}"
+      when:
+        - AutoLoginEnable is defined
+        - AutoLoginAgain is defined
+        - AutoLoginDelay is defined
+        - AutoLoginUser is defined
+
+    - name: Save AutoLogin information to JSON
+      copy: 
+        content: "{{ combined_params | to_nice_json }}"
+        dest: /tmp/AutoLogin_{{ inventory_hostname }}.json
+
+    # Audit Control Section
+    - name: Check Astra files existence
+      stat:
+        path: "/etc/audit/rules.d/{{ item }}"
+      loop:
+        - astra-syslog.rules
+        - astra-syslog.rules.dpkg-dist
+        - audit.rules
+        - 10-parsec-nw.rules
+        - 10-parsec.rules
+      register: file_check_results
+
+    - name: Create results dictionary
+      set_fact:
+        audit_files: {}
+
+    - name: Fill results dictionary
+      set_fact:
+        audit_files: "{{ audit_files | combine({item.item: (1 if item.stat.exists else 0)}) }}"
+      loop: "{{ file_check_results.results }}"
+
+    # Add all astra-* status checks
+    - name: Check all astra controls status
+      command: "{{ item }} status"
+      loop:
+        - astra-bash-lock
+        - astra-commands-lock
+        - astra-digsig-control
+        - astra-console-lock
+        - astra-docker-isolation
+        - astra-format-lock
+        - astra-hardened-control
+        - astra-ilev1-control
+        - astra-interpreters-lock
+        - astra-lkrg-control
+        - astra-macros-lock
+        - astra-mac-control
+        - astra-mic-control
+        - astra-modban-lock
+        - astra-mode-apps
+        - astra-mount-lock
+        - astra-noautonet-control
+        - astra-nobootmenu-control
+        - astra-nochmodx-lock
+        - astra-overlay
+        - astra-ptrace-lock
+        - astra-rootloginssh-control
+        - astra-secdel-control
+        - astra-shutdown-lock
+        - astra-strictmode-control
+        - astra-sudo-control
+        - astra-sumac-lock
+        - astra-swapwiper-control
+        - astra-sysrq-lock
+        - astra-ufw-control
+        - astra-ulimits-control
+      register: astra_statuses
+      ignore_errors: yes
+      failed_when: false  # Игнорируем ненулевые коды выхода
+
+    - name: Check astra-modeswitch status
+      command: astra-modeswitch getname
+      register: modeswitch_status
+      ignore_errors: yes
+      failed_when: false  # Игнорируем ненулевые коды выхода
+
+    - name: Prepare statuses dictionary
+      set_fact:
+        status_dict: "{{ dict(astra_statuses.results | map(attribute='item') | map('regex_replace', 'astra-', '') | map('regex_replace', '-control$', '') | map('regex_replace', '-lock$', '') | zip(astra_statuses.results | map(attribute='stdout') | map('regex_replace', '^АКТИВНО$', '1') | map('regex_replace', '^НЕАКТИВНО$', '0') | list)) | combine({'modeswitch': modeswitch_status.stdout}) }}"
+
+    - name: Prepare combined output
+      set_fact:
+        combined_output:
+          autologin: "{{ combined_params }}"
+          audit_controls:
+            files: "{{ audit_files }}"
+            statuses: "{{ status_dict }}"
+
+    - name: Save combined JSON output to remote machine
+      copy:
+        content: "{{ combined_output | to_nice_json }}"
+        dest: "/tmp/combined_results_{{ inventory_hostname }}.json"
+
+    - name: Fetch JSON file to local machine
+      fetch:
+        src: "/tmp/combined_results_{{ inventory_hostname }}.json"
+        dest: "/tmp/combined_results_{{ inventory_hostname }}.json"
+        flat: yes
+
+    - name: Display combined results
+      debug:
+        msg: "{{ lookup('file', '/tmp/combined_results_{{ inventory_hostname }}.json') | from_json }}"
+      delegate_to: localhost
