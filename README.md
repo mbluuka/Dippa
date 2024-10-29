@@ -28,7 +28,7 @@
 
 3. Запуск сценария
 
-```ansible-playbook название_плейбука.yml --ask-become-pass```
+```ansible-playbook название_плейбука.yml --ask-become-pass --ask-pass```
 
 4. Получение результата
 
