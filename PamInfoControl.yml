@@ -61,15 +61,15 @@
     - name: Save combined parameters to JSON on remote machine
       copy:
         content: "{{ combined_params | to_nice_json }}"
-        dest: /tmp/combined_info.json
-
+        dest: "/tmp/combined_info_{{ inventory_hostname }}.json"
+    
     - name: Fetch JSON file to local machine
       fetch:
-        src: /tmp/combined_info.json
-        dest: /tmp/combined_info.json
+        src: "/tmp/combined_info_{{ inventory_hostname }}.json"
+        dest: "/tmp/combined_info_{{ inventory_hostname }}.json"
         flat: yes
-
+    
     - name: Debug combined parameters from file
       debug:
-        msg: "{{ lookup('file', '/tmp/combined_info.json') }}"
+        msg: "{{ lookup('file', '/tmp/combined_info_{{ inventory_hostname }}.json') }}"
       delegate_to: localhost
