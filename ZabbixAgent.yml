@@ -1,32 +1,48 @@
 ---
 - name: Install and configure Zabbix agent
   hosts: giss
-  become: yes
+  become: yes  # Используем привилегии root
   vars:
     zabbix_active_server: "192.168.111.232"  # IP активного сервера
     zabbix_passive_server: "192.168.111.232" # IP пассивного сервера
-    zabbix_metadata: "GISS-Metadata"      # Метаданные агента
-  
+    zabbix_metadata: "GIS"      # Метаданные агента
+
   tasks:
     - name: Install Zabbix agent
-      ansible.builtin.apt:
+      apt: 
         name: zabbix-agent
         state: present
 
-    - name: Configure Zabbix agent
-      ansible.builtin.lineinfile:
+    - name: Configure Zabbix agent (set passive server)
+      lineinfile:
         path: /etc/zabbix/zabbix_agentd.conf
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
+        regexp: '^Server='
+        line: "Server={{ zabbix_passive_server }}"
         create: yes
-      loop:
-        - { regexp: '^Server=', line: "Server={{ zabbix_passive_server }}" }
-        - { regexp: '^ServerActive=', line: "ServerActive={{ zabbix_active_server }}" }
-        - { regexp: '^Hostname=', line: "Hostname={{ inventory_hostname }}" }
-        - { regexp: '^HostMetadata=', line: "HostMetadata={{ zabbix_metadata }}" }
+
+    - name: Configure Zabbix agent (set active server)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^ServerActive='
+        line: "ServerActive={{ zabbix_active_server }}"
+        create: yes
+
+    - name: Configure Zabbix agent (set hostname)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^Hostname='
+        line: "Hostname={{ inventory_hostname }}"
+        create: yes
+
+    - name: Configure Zabbix agent (set metadata)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^HostMetadata='
+        line: "HostMetadata={{ zabbix_metadata }}"
+        create: yes
 
     - name: Restart Zabbix agent service
-      ansible.builtin.systemd:
+      systemd:  # Используем модуль systemd для управления сервисом
         name: zabbix-agent
         state: restarted
         enabled: yes
