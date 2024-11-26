@@ -6,9 +6,10 @@
     zabbix_active_server: "192.168.111.232"  # IP активного сервера
     zabbix_passive_server: "192.168.111.232" # IP пассивного сервера
     zabbix_metadata: "GISS-Metadata"      # Метаданные агента
+  
   tasks:
     - name: Install Zabbix agent
-      ansible.builtin.yum:
+      ansible.builtin.apt:
         name: zabbix-agent
         state: present
 
