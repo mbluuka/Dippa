@@ -1,5 +1,5 @@
 ---
-- name: Установка и конфигурирование Агента Zabbix-а
+- name: Install and configure Zabbix agent
   hosts: giss
   become: yes
   vars:
@@ -7,12 +7,12 @@
     zabbix_passive_server: "192.168.111.232" # IP пассивного сервера
     zabbix_metadata: "GISS-Metadata"      # Метаданные агента
   tasks:
-    - name: Установка Zabbix agent
+    - name: Install Zabbix agent
       ansible.builtin.yum:
         name: zabbix-agent
         state: present
 
-    - name: Конфигурирование Zabbix agent
+    - name: Configure Zabbix agent
       ansible.builtin.lineinfile:
         path: /etc/zabbix/zabbix_agentd.conf
         regexp: "{{ item.regexp }}"
