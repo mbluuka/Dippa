@@ -1,0 +1,31 @@
+---
+- name: Установка и конфигурирование Агента Zabbix-а
+  hosts: giss
+  become: yes
+  vars:
+    zabbix_active_server: "192.168.111.232"  # IP активного сервера
+    zabbix_passive_server: "192.168.111.232" # IP пассивного сервера
+    zabbix_metadata: "GISS-Metadata"      # Метаданные агента
+  tasks:
+    - name: Установка Zabbix agent
+      ansible.builtin.yum:
+        name: zabbix-agent
+        state: present
+
+    - name: Конфигурирование Zabbix agent
+      ansible.builtin.lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: yes
+      loop:
+        - { regexp: '^Server=', line: "Server={{ zabbix_passive_server }}" }
+        - { regexp: '^ServerActive=', line: "ServerActive={{ zabbix_active_server }}" }
+        - { regexp: '^Hostname=', line: "Hostname={{ inventory_hostname }}" }
+        - { regexp: '^HostMetadata=', line: "HostMetadata={{ zabbix_metadata }}" }
+
+    - name: Restart Zabbix agent service
+      ansible.builtin.systemd:
+        name: zabbix-agent
+        state: restarted
+        enabled: yes
