@@ -6,6 +6,8 @@
     zabbix_active_server: "192.168.111.232"  # IP активного сервера
     zabbix_passive_server: "192.168.111.232" # IP пассивного сервера
     zabbix_metadata: "GIS"      # Метаданные агента
+    zabbix_EnableRemoteCommands: "1"
+    zabbix_LogRemoteCommands: "1"
 
   tasks:
     - name: Install Zabbix agent
@@ -39,6 +41,20 @@
         path: /etc/zabbix/zabbix_agentd.conf
         regexp: '^HostMetadata='
         line: "HostMetadata={{ zabbix_metadata }}"
+        create: yes
+
+    - name: Configure Zabbix agent (set EnRemCtrl)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^EnableRemoteCommands='
+        line: "EnableRemoteCommands={{ zabbix_EnableRemoteCommands }}"
+        create: yes
+    
+    - name: Configure Zabbix agent (set LogRemCtrl)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^LogRemoteCommands='
+        line: "LogRemoteCommands={{ zabbix_LogRemoteCommands }}"
         create: yes
 
     - name: Restart Zabbix agent service
