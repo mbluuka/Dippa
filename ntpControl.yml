@@ -1,16 +1,17 @@
 ---
-  - hosts: giss
-    become: yes
-    roles:
-      - role: idiv-biodiversity.systemd_timesyncd
-        vars:
-          system_timezone: Europe/Moscow
-          ntp_servers:
-            - "192.168.1.92"  # основной NTP-сервер
-          ntp_fallback_servers:
-            - "0.ru.pool.ntp.org"
-            - "1.ru.pool.ntp.org"
-            - "2.ru.pool.ntp.org"
-            - "3.ru.pool.ntp.org"
-        tags:
-          - systemd-timesyncd
+- name: Установка и настройка NTP с основным сервером 192.168.1.92
+  become: yes
+  hosts: all
+  tasks:
+    - name: Настройка конфигурационного файла NTP
+      lineinfile:
+        path: /etc/ntp.conf
+        regexp: '^server '
+        line: 'server 192.168.1.92 iburst'
+        state: present
+
+    - name: Перезапуск службы NTP
+      service:
+        name: ntp
+        state: restarted
+        enabled: yes
