@@ -1,0 +1,10 @@
+- name: Disable and stop Zabbix agent
+  hosts: WI
+  become: yes  # Используем привилегии root
+
+  tasks:
+    - name: Stop Zabbix agent service
+      systemd:
+        name: zabbix-agent
+        state: stopped
+        enabled: no
